@@ -16,6 +16,8 @@ from model.myLossset import CensusLoss as census
 import model.STloss as ST
 from model.motionWarp import TwoWarpSecondFrame_Fusion, OneWarpSecondFrame_Fusion
 
+from model.mask_generator import mask_generator_basic
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 c = 48
 
@@ -46,6 +48,9 @@ class SimplifiedWarp_Pipeline(nn.Module):
         self.decoder = nn.Sequential()
         self.epsilon = 1e-6
         self.loss_census = census()
+        
+        # mask generating
+        self.mask_generator = mask_generator_basic(f_image_channel=32)
 
     def forward(self, allframes, training_flag=True):
         # allframes 0<1>2<3>4<5>6
@@ -151,8 +156,11 @@ class SimplifiedWarp_Pipeline(nn.Module):
             current_bw_OF = list_of_backward_optical_flow_for_warp_list[i][-1]
             ori_img0_feature = fallfeatures_d0[i]
             ori_img1_feature = ballfeatures_d0[i]
+            warp0, warp1 = self.mask_generator(ori_img0_feature, ori_img1_feature, current_fw_OF, current_bw_OF)
             warped_fimg0_d0 = warp(fallfeatures_d0[i], 0.5 * current_fw_OF)
-            warped_fimg1_d0 = warp(ballfeatures_d0[i], 0.5 * current_bw_OF)
+            warped_fimg0_d0 = warped_fimg0_d0* warp0
+            warped_fimg1_d0 = warp(ballfeatures_d0[i], 0.5 * current_bw_OF) * warp1
+            warped_fimg1_d0 = warped_fimg1_d0* warp1
 
             # Use Unet to create the three interpolated frame
             # print(f"Index {i}: {list_of_forward_optical_flow_for_warp_list[i]}")
