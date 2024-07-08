@@ -1,0 +1,15 @@
+.*/
+intrain_log/
+model/__pycache__
+model/oldmodel/*
+model/pytorch_mssim
+model/LSTMmodules.py
+model/notused_RIFE_loaded.py
+check.ipynb
+check.py
+train/
+validate/
+simple_train_log/
+simple_intrain_log/
+RIFE_log/
+spynet-sintel.pth
