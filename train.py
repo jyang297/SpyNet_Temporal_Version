@@ -263,10 +263,14 @@ if __name__ == "__main__":
     torch.cuda.empty_cache()
     parser = argparse.ArgumentParser()
     parser.add_argument('--epoch', default=200, type=int)
-    parser.add_argument('--batch_size', default=7, type=int, help='minibatch size')
+    parser.add_argument('--batch_size', default=14, type=int, help='minibatch size')
     parser.add_argument('--local_rank', default=0, type=int, help='local rank')
-    parser.add_argument('--world_size', default=1, type=int, help='world size')
+    parser.add_argument('--world_size', default=2, type=int, help='world size')
     args = parser.parse_args()
+    
+    
+    
+    
     
     torch.distributed.init_process_group(backend="nccl",world_size=1, rank=0)
     torch.cuda.set_device(args.local_rank)

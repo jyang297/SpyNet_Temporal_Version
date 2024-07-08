@@ -6,8 +6,8 @@ import numpy as np
 import random
 from torch.utils.data import DataLoader, Dataset
 
-data_root = '/home/jyzhao/Code/Datasets/vimeo_septuplet'
-# data_root = '/home/jyang297/scratch/vimeo_septuplet'
+# data_root = '/home/jyzhao/Code/Datasets/vimeo_septuplet'
+data_root = '/home/jyang297/scratch/vimeo_septuplet'
 
 
 cv2.setNumThreads(1)
@@ -29,7 +29,7 @@ class VimeoDatasetSep(Dataset):
         self.load_data()
 
     def __len__(self):
-        return len(self.meta_data) 
+        return len(self.meta_data) //1000
 
     def load_data(self):
         cnt = int(len(self.trainlist) * 0.95)

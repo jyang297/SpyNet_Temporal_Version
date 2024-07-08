@@ -3,6 +3,7 @@ import cv2
 import math
 import time
 import torch
+import torch.nn as nn
 import torch.distributed as dist
 import numpy as np
 import random
@@ -68,7 +69,7 @@ def train(model, local_rank):
     nr_eval = 0
     dataset = VimeoDatasetSep('train')
     sampler = DistributedSampler(dataset)
-    train_data = DataLoader(dataset, batch_size=args.batch_size, num_workers=1, pin_memory=True, drop_last=True, sampler=sampler)
+    train_data = DataLoader(dataset, batch_size=args.batch_size, num_workers=2, pin_memory=True, drop_last=True, sampler=sampler)
     args.step_per_epoch = dataset.__len__()
     dataset_val = VimeoDatasetSep('test')
     val_data = DataLoader(dataset_val, batch_size=4, pin_memory=True, num_workers=1)
@@ -122,18 +123,23 @@ def train(model, local_rank):
         if (epoch + 1) % 10 == 0:  # Adding 1 to make it human-readable (epochs start from 1)
             model_save_path = os.path.join(log_path, f'model_epoch_{epoch+1}.pth')
             # torch.save(model.state_dict(), model_save_path)
-            model.save_model(model_save_path, local_rank)    
-            print(f'Model saved at epoch {epoch+1}')
-        nr_eval += 1
-        print(nr_eval)
-        
+            if local_rank == 0:
+                model.save_model(model_save_path, local_rank)    
+                print(f'Model saved at epoch {epoch+1}')
+                
+            dist.barrier()
+
+        nr_eval += 1      
         if nr_eval % 5 == 0:
             print("Evaluate now\n")
-            evaluate(model, val_data, step, local_rank, writer_val)
+            if local_rank == 0:
+                evaluate(model, val_data, step, local_rank, writer_val)
+            dist.barrier()
         if not os.path.exists(intrain_path):
             # os.makedirs(log_path)
-            model.save_model(intrain_path, local_rank)    
-        # dist.barrier()
+            if local_rank == 0:
+                model.save_model(intrain_path, local_rank)    
+            dist.barrier()
 
 def evaluate(model, val_data, nr_eval, local_rank, writer_val):
     loss_l1_list = []
@@ -200,20 +206,21 @@ def evaluate(model, val_data, nr_eval, local_rank, writer_val):
     #print(".\n")
     writer_val.add_scalar('psnr', np.array(psnr_list).mean(), nr_eval)
     writer_val.flush()
-    # writer_val.add_scalar('psnr_tea
-
-
+    # writer_val.add_scalar('psnr_teacher', np.array(psnr_list_teacher).mean(), nr_eval)
+        
+  
          
 
 if __name__ == "__main__":    
     torch.cuda.empty_cache()
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--epoch', default=200, type=int)
-    parser.add_argument('--batch_size', default=24, type=int, help='minibatch size')
+    parser.add_argument('--batch_size', default=8, type=int, help='minibatch size')
     parser.add_argument('--local_rank', default=0, type=int, help='local rank')
-    parser.add_argument('--world_size', default=1, type=int, help='world size')
+    parser.add_argument('--world_size', default=2, type=int, help='world size')
     args = parser.parse_args()
-    
+    map_location = {"cuda:%d" % 0: 'cuda:%d' % args.local_rank}
     torch.distributed.init_process_group(backend="nccl",world_size=1, rank=0)
     torch.cuda.set_device(args.local_rank)
     seed = 1234
@@ -228,5 +235,8 @@ if __name__ == "__main__":
     
     
     train(model, args.local_rank)
+    
+    
+    dist.destroy_process_group()
         
         
